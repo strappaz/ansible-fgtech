@@ -1,0 +1,21 @@
+---
+- name: Déploiement web avec contrôle du load balancer
+  hosts: webservers
+  serial: 10 # Traite les serveurs par lots de 10
+
+  tasks:
+    - name: Mettre à jour le code de l'application
+      ansible.builtin.git:
+        repo: 'https://monrepo.git'
+        dest: /srv/webapp
+      # Cette tâche peut s'exécuter sur les 10 serveurs du lot en parallèle
+
+    - name: S'enregistrer auprès du load balancer
+      uri:
+        url: "https://api.loadbalancer.com/register"
+        method: POST
+        body:
+          hostname: "{{ inventory_hostname }}"
+      
+      # C'est ici que la magie opère :
+      throttle: 3
