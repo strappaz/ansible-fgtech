@@ -14,3 +14,10 @@
 ```shell
 ANSIBLE_PYTHON_INTERPRETER=auto_silent ansible all  -m ping -i inventory 
 ```
+
+## Caveats
+```shell
+ansible-config list  # list all configurations
+ansible-config view  # Shows the current config file
+ansible-config dump  # Shos the current settings
+```

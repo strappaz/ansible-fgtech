@@ -3,7 +3,7 @@
 # This role compiles GlusterFS from source on the build host
 - name: Define OS-specific build dependency variables
   vars:
-    # Base packages common to all distros
+    # ... (variable definitions remain unchanged) ...
     base_build_packages:
       - git
       - autoconf
@@ -17,15 +17,13 @@
       - python3-docutils
       - python3-netifaces
       - python3-simplejson
-
-    # Packages for RHEL/CentOS/AlmaLinux family
     rhel_build_packages:
       - acl
       - libacl-devel
       - libaio-devel
       - libibverbs-devel
       - librdmacm-devel
-      - libtirpc-devel        # Provides rpcgen
+      - libtirpc-devel
       - libuuid-devel
       - libxml2-devel
       - lvm2
@@ -33,11 +31,9 @@
       - readline-devel
       - userspace-rcu-devel
       - python3-xattr
-      - gperftools-devel      # Provides tcmalloc
-      - zlib-devel            # Provides zlib compression library
-      - liburing-devel        # Provides modern async I/O library
-
-    # Packages for Debian/Ubuntu family
+      - gperftools-devel
+      - zlib-devel
+      - liburing-devel
     debian_build_packages:
       - libacl1-dev
       - libaio-dev
@@ -50,77 +46,60 @@
       - liburcu-dev
       - uuid-dev
       - python3-pyxattr
-      - rpcsvc-proto          # Provides rpcgen
-      - libgoogle-perftools-dev # Provides tcmalloc
-      - zlib1g-dev            # Provides zlib compression library
-      - liburing-dev          # Provides modern async I/O library
-
+      - rpcsvc-proto
+      - libgoogle-perftools-dev
+      - zlib1g-dev
+      - liburing-dev
   block:
-    - name: Update package cache (for apt-based systems)
-      become: true
-      ansible.builtin.apt:
-        update_cache: true
-      when: ansible_os_family == "Debian"
-
-    - name: Enable CRB/PowerTools repository for -devel packages (RHEL 8+)
-      become: true
-      ansible.builtin.command: "dnf config-manager --set-enabled {{ item }}"
-      loop:
-        - crb
-        - powertools
-      when: ansible_os_family == "RedHat" and ansible_distribution_major_version | int >= 8
-      changed_when: false
-      failed_when: false
-
-    - name: Install all GlusterFS Build Dependencies for the target OS
-      become: true
-      ansible.builtin.package:
-        name: "{{ base_build_packages + (rhel_build_packages if ansible_os_family == 'RedHat' else debian_build_packages) }}"
-        state: present
-
-    - name: Find the latest GlusterFS release from GitHub API
-      ansible.builtin.uri:
-        url: "https://api.github.com/repos/gluster/glusterfs/releases/latest"
-        method: GET
-        return_content: true
-        headers:
-          Accept: "application/vnd.github.v3+json"
-      register: latest_release
-      check_mode: no
-
-    - name: Set facts for version and source directory
-      ansible.builtin.set_fact:
-        glusterfs_version: "{{ latest_release.json.tag_name | replace('v', '') }}"
-        source_dir: "/tmp/glusterfs-{{ latest_release.json.tag_name | replace('v', '') }}"
-
-    - name: Display the found version and source path
-      ansible.builtin.debug:
-        msg: "Found version {{ glusterfs_version }}. Source will be in {{ source_dir }}"
-
-    - name: Create a directory if it does not exist
-      ansible.builtin.file:
-          path: "{{ source_dir }}"
-          state: directory
-          mode: '0755'
-
-    - name: untar
-      ansible.builtin.git:
-          repo: "https://github.com/gluster/glusterfs.git"
-          dest: "{{ source_dir }}"
-          version: "v{{ glusterfs_version }}"
-
-    #- name: Download and Unarchive GlusterFS Source Code
-    #  ansible.builtin.unarchive:
-    #    src: "https://github.com/gluster/glusterfs/archive/refs/tags/v{{ glusterfs_version }}.tar.gz"
-    #    dest: "/tmp"
-    #    remote_src: yes
-    #    creates: "{{ source_dir }}/"
-
-    - name: Build GlusterFS from source
+    - name: Prepare build environment and download sources
       block:
+        # ... (all preparation tasks remain the same) ...
+        - name: Update package cache (for apt-based systems)
+          become: true
+          ansible.builtin.apt:
+            update_cache: true
+          when: ansible_os_family == "Debian"
+        - name: Enable CRB/PowerTools repository for -devel packages (RHEL 8+)
+          become: true
+          ansible.builtin.command: "dnf config-manager --set-enabled {{ item }}"
+          loop: [crb, powertools]
+          when: ansible_os_family == "RedHat" and ansible_distribution_major_version | int >= 8
+          changed_when: false
+          failed_when: false
+        - name: Install all GlusterFS Build Dependencies for the target OS
+          become: true
+          ansible.builtin.package:
+            name: "{{ base_build_packages + (rhel_build_packages if ansible_os_family == 'RedHat' else debian_build_packages) }}"
+            state: present
+        - name: Find the latest GlusterFS release from GitHub API
+          ansible.builtin.uri:
+            url: "https://api.github.com/repos/gluster/glusterfs/releases/latest"
+            method: GET
+            return_content: true
+            headers:
+              Accept: "application/vnd.github.v3+json"
+          register: latest_release
+          check_mode: no
+        - name: Set facts for version and source directory
+          ansible.builtin.set_fact:
+            glusterfs_version: "{{ latest_release.json.tag_name | replace('v', '') }}"
+            source_dir: "/tmp/glusterfs-{{ latest_release.json.tag_name | replace('v', '') }}"
+        - name: Display the found version and source path
+          ansible.builtin.debug:
+            msg: "Found version {{ glusterfs_version }}. Source will be in {{ source_dir }}"
+        - name: Download and Unarchive GlusterFS Source Code
+          ansible.builtin.unarchive:
+            src: "https://github.com/gluster/glusterfs/archive/refs/tags/v{{ glusterfs_version }}.tar.gz"
+            dest: "/tmp"
+            remote_src: true
+            creates: "{{ source_dir }}/"
+
+    - name: Build GlusterFS, handle failures, and cleanup
+      block:
+        # --- The main "try" block for the build process ---
         - name: Run autogen.sh
           ansible.builtin.command:
-            cmd:  ./autogen.sh
+            cmd: ./autogen.sh
             chdir: "{{ source_dir }}"
           args:
             creates: "{{ source_dir }}/configure"
@@ -136,10 +115,14 @@
           args:
             creates: "{{ source_dir }}/config.status"
 
-        - name: Run make
-          ansible.builtin.command:
-            cmd: make -j{{ ansible_processor_vcpus }}
+        - name: Run make and create success stamp file
+          ansible.builtin.shell:
+            # The '&&' ensures that 'touch' only runs if 'make' succeeds.
+            cmd: "make -j{{ ansible_processor_vcpus }} && touch .ansible_make_success_stamp"
             chdir: "{{ source_dir }}"
+          args:
+            # The idempotency check is now against our reliable stamp file.
+            creates: "{{ source_dir }}/.ansible_make_success_stamp"
 
         - name: Run make install
           become: true
@@ -147,24 +130,36 @@
             cmd: make install
             chdir: "{{ source_dir }}"
           args:
+            # This check is reliable, as the file is the final goal of the installation.
             creates: "/usr/local/sbin/glusterd"
 
-    - name: Create an archive of the compiled binaries and libraries
-      become: true
-      ansible.builtin.archive:
-        path:
-          - /usr/local/sbin/
-          - /usr/local/lib/
-          - /usr/local/lib64/
-          - /usr/local/include/
-          - /usr/local/share/
-          - /usr/local/etc/
-        dest: "/tmp/glusterfs-{{ glusterfs_version }}-bin.tar.gz"
-        format: gz
-        owner: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+        - name: Create an archive of the compiled binaries (on success)
+          become: true
+          ansible.builtin.archive:
+            path:
+              - /usr/local/sbin/
+              - /usr/local/lib/
+              - /usr/local/lib64/
+              - /usr/local/include/
+              - /usr/local/share/
+              - /usr/local/etc/
+            dest: "/tmp/glusterfs-{{ glusterfs_version }}-bin.tar.gz"
+            format: gz
+            owner: "{{ ansible_user | default(lookup('env', 'USER')) }}"
 
-    #- name: Clean up source directory after build
-    #  become: true
-    # ansible.builtin.file:
-    #    path: "{{ source_dir }}" # <-- Now correctly uses the fact
-    #    state: absent
+      rescue:
+        # --- This block runs ONLY if a task in the above 'block' fails ---
+        - name: Fail gracefully on build error
+          ansible.builtin.fail:
+            msg: |
+              The GlusterFS build failed. Please check the logs.
+              The failing task was: {{ ansible_failed_task.name }}
+              The error was: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr) }}
+
+      always:
+        # --- This block ALWAYS runs, ensuring cleanup happens ---
+        - name: Clean up source directory after build (success or failure)
+          become: true
+          ansible.builtin.file:
+            path: "{{ source_dir }}"
+            state: absent
