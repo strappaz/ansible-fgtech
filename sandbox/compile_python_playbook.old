@@ -1,0 +1,111 @@
+---
+- name: Compile Python and Install Ansible from GitHub Source
+  hosts: almalinux_hosts
+  become: true
+  vars:
+    python_version: "3.13.5" #<-- Check for the latest stable version and update here
+    install_user: "{{ ansible_user }}" # User for whom the virtualenv will be created
+    ansible_source_dir: "/home/{{ install_user }}/ansible_source"
+
+  tasks:
+    - name: Set Python and venv paths
+      set_fact:
+        python_install_dir: "/opt/python/{{ python_version }}"
+        python_major_version: "{{ python_version | regex_replace('^(\\d+\\.\\d+).*', '\\1') }}"
+        venv_path: "/home/{{ install_user }}/ansible_venv"
+
+    - name: 1. Install Build and Git Dependencies on AlmaLinux
+      ansible.builtin.dnf:
+        name:
+          - gcc
+          - zlib-devel
+          - bzip2
+          - bzip2-devel
+          - readline-devel
+          - sqlite-devel
+          - openssl-devel
+          - libffi-devel
+          - xz-devel
+          - wget
+          - make
+          - git # Ensure git is installed
+        state: present
+
+    - name: 2. Check if Python version is already installed
+      ansible.builtin.stat:
+        path: "{{ python_install_dir }}"
+      register: python_dir_stat
+
+    - name: Block for Compiling and Installing Python
+      when: not python_dir_stat.stat.exists
+      block:
+        - name: Download Python Source Code
+          ansible.builtin.get_url:
+            url: "https://www.python.org/ftp/python/{{ python_version }}/Python-{{ python_version }}.tar.xz"
+            dest: "/tmp/Python-{{ python_version }}.tar.xz"
+            mode: '0644'
+
+        - name: Unarchive Python Source
+          ansible.builtin.unarchive:
+            src: "/tmp/Python-{{ python_version }}.tar.xz"
+            dest: "/tmp"
+            remote_src: yes
+
+        - name: Configure and build Python
+          ansible.builtin.command: "{{ item }}"
+          args:
+            chdir: "/tmp/Python-{{ python_version }}"
+            creates: "{{ python_install_dir }}/bin/python{{ python_major_version }}"
+          loop:
+            - "./configure --prefix={{ python_install_dir }} --enable-optimizations --with-ensurepip=install"
+            - "make altinstall"
+
+    - name: 3. Create a 'latest' symbolic link to the new Python installation
+      ansible.builtin.file:
+        src: "{{ python_install_dir }}"
+        dest: "/opt/python/latest"
+        state: link
+        force: yes
+
+    - name: 4. Create a virtual environment for the specified user
+      ansible.builtin.command:
+        cmd: "/opt/python/latest/bin/python{{ python_major_version }} -m venv {{ venv_path }}"
+        creates: "{{ venv_path }}/bin/activate"
+      become: false
+      become_user: "{{ install_user }}"
+
+    - name: 5. Clone the Ansible 'devel' branch from GitHub
+      become: false
+      become_user: "{{ install_user }}"
+      ansible.builtin.git:
+        repo: 'https://github.com/ansible/ansible.git'
+        dest: "{{ ansible_source_dir }}"
+        version: v2.18.7  # Clones the main development branch
+        force: yes
+
+
+    - name: 6. Install Ansible dependencies from source requirements file
+      become: false
+      become_user: "{{ install_user }}"
+      ansible.builtin.pip:
+        requirements: "{{ ansible_source_dir }}/requirements.txt"
+        virtualenv: "{{ venv_path }}"
+
+    - name: 7. Install Ansible itself from the cloned source
+      become: false
+      become_user: "{{ install_user }}"
+      ansible.builtin.pip:
+        name: "{{ ansible_source_dir }}"
+        virtualenv: "{{ venv_path }}"
+        editable: true
+      args:
+        chdir: "{{ ansible_source_dir }}" # Run pip from inside the source directory
+
+    - name: Display final instructions
+      ansible.builtin.debug:
+        msg:
+          - "SUCCESS: Python {{ python_version }} is installed in {{ python_install_dir }}."
+          - "SUCCESS: Latest Ansible 'devel' branch cloned to {{ ansible_source_dir }}."
+          - "A virtual environment for user '{{ install_user }}' is ready at: {{ venv_path }}"
+          - "To activate it, log in as '{{ install_user }}' and run: 'source {{ venv_path }}/bin/activate'"
+          - "After activating, run 'ansible --version' to see the development version."

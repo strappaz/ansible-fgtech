@@ -1,0 +1,148 @@
+---
+# ===================================================================
+# Play 1: Prepare the Host (With Optimized Compilation)
+# ===================================================================
+- name: Play 1 - Prepare the Host System
+  hosts: almalinux_hosts
+  become: true
+  # Fact gathering is enabled by default, which is what we need for ansible_processor_vcpus
+  vars:
+    python_version: "3.13.5"
+    target_user: "docke"
+    python_install_dir: "/opt/python/{{ python_version }}"
+    python_executable_path: "{{ python_install_dir }}/bin/python{{ python_version | regex_replace('^(\\d+\\.\\d+).*', '\\1') }}"
+    venv_path: "/home/{{ target_user }}/ansible_venv_{{ python_version }}"
+
+  tasks:
+    - name: 1. Install Build Dependencies and Git
+      ansible.builtin.package:
+        name:
+          - gcc
+          - zlib-devel
+          - bzip2-devel
+          - readline-devel
+          - sqlite-devel
+          - openssl-devel
+          - libffi-devel
+          - xz-devel
+          - wget
+          - make
+          - git
+        state: present
+
+    - name: 2. Check if the custom Python executable already exists
+      ansible.builtin.stat:
+        path: "{{ python_executable_path }}"
+      register: python_binary_stat
+
+    - name: 3. Compile and Install Custom Python (if not present)
+      block:
+        - name: Download Python Source
+          ansible.builtin.get_url:
+            url: "https://www.python.org/ftp/python/{{ python_version }}/Python-{{ python_version }}.tar.xz"
+            dest: "/tmp/Python-{{ python_version }}.tar.xz"
+
+        - name: Unarchive Python Source
+          ansible.builtin.unarchive:
+            src: "/tmp/Python-{{ python_version }}.tar.xz"
+            dest: "/tmp"
+            remote_src: yes
+            creates: "/tmp/Python-{{ python_version }}/"
+
+        - name: Configure the Python build (creates Makefile)
+          ansible.builtin.command:
+            cmd: "./configure --prefix={{ python_install_dir }} --enable-optimizations"
+            chdir: "/tmp/Python-{{ python_version }}"
+            creates: "/tmp/Python-{{ python_version }}/Makefile"
+
+        - name: OPTIMIZED - Compile and install using all available CPU cores
+          ansible.builtin.command:
+            # Use the ansible_processor_vcpus fact to set the -j flag
+            cmd: "make -j{{ ansible_processor_vcpus }} altinstall"
+            chdir: "/tmp/Python-{{ python_version }}"
+            creates: "{{ python_executable_path }}"
+      when: not python_binary_stat.stat.exists
+
+    - name: 4. Create the '{{ target_user }}' user
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        state: present
+        create_home: yes
+
+    - name: 5. Create the virtualenv using the NEWLY COMPILED Python
+      ansible.builtin.command:
+        cmd: "{{ python_executable_path }} -m venv {{ venv_path }}"
+        creates: "{{ venv_path }}/bin/activate"
+      become: true
+      become_user: "{{ target_user }}"
+
+
+# ===================================================================
+# Play 2: Define a Dynamic Inventory Host (No Changes)
+# ===================================================================
+- name: Play 2 - Define a Dynamic Host for the Virtual Environment
+  hosts: almalinux_hosts
+  gather_facts: false
+  vars:
+    python_version: "3.13.5"
+    target_user: "docke"
+    venv_path: "/home/{{ target_user }}/ansible_venv_{{ python_version }}"
+  tasks:
+    - name: Add a new host that uses the venv's Python interpreter
+      ansible.builtin.add_host:
+        name: "{{ inventory_hostname }}_venv"
+        groups: venv_hosts
+        ansible_host: "{{ ansible_host }}"
+        ansible_user: "{{ target_user }}"
+        ansible_ssh_private_key:  "/home/docke/.ssh/id_rsa"
+        ansible_python_interpreter: "{{ venv_path }}/bin/python"
+
+
+# ===================================================================
+# Play 3: Operate Inside the Virtual Environment (No Changes)
+# ===================================================================
+- name: Play 3 - Install Ansible from Source Inside the venv
+  hosts: venv_hosts
+  become: false
+  vars:
+    target_user: "docke"
+    ansible_source_dir: "/home/{{ target_user }}/ansible_source"
+    # Redefine venv_path as it's not passed between plays
+    venv_path: "/home/{{ target_user }}/ansible_venv_{{ python_version | default('3.13.5') }}"
+
+  tasks:
+    - name: 1. THE FIX - Bootstrap the venv with pip/setuptools/packaging
+      ansible.builtin.command:
+        # We explicitly call the pip from the venv to install its own dependencies
+        cmd: "{{ venv_path }}/bin/pip install --upgrade pip setuptools packaging"
+      changed_when: false # This is a setup task, not a configuration change
+
+    - name: 2. Clone the latest 'devel' branch of Ansible from GitHub
+      ansible.builtin.git:
+        repo: 'https://github.com/ansible/ansible.git'
+        dest: "{{ ansible_source_dir }}"
+        version: v2.18.7
+        force: yes
+
+    - name: 3. Install Ansible requirements using the now-functional pip module
+      ansible.builtin.pip:
+        requirements: "{{ ansible_source_dir }}/requirements.txt"
+
+    - name: 4. Install Ansible itself in editable mode
+      ansible.builtin.pip:
+        name: "{{ ansible_source_dir }}"
+        editable: true
+
+    - name: 5. Verify Python and Ansible versions inside the venv
+      ansible.builtin.command: "{{ item }}"
+      changed_when: false
+      loop:
+        - "python --version"
+        - "ansible --version"
+      environment:
+        PATH: "{{ venv_path }}/bin:{{ ansible_env.PATH }}"
+      register: version_check
+
+    - name: Display final version info
+      ansible.builtin.debug:
+        var: version_check.results

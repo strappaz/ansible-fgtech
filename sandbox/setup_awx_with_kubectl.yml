@@ -1,0 +1,164 @@
+---
+# ===================================================================
+# Play 1: Prepare the Host System for KinD and kubectl
+# ===================================================================
+- name: Play 1 - Prepare Host and Install Tooling
+  hosts: hosts-03
+  become: true # Required to install software
+  vars:
+    kind_binary_path: /usr/local/bin/kind
+    kubectl_binary_path: /usr/local/bin/kubectl
+
+  tasks:
+    - name: Check if kubectl is already installed
+      ansible.builtin.stat:
+        path: "{{ kubectl_binary_path }}"
+      register: kubectl_stat
+    - name: Install latest stable kubectl if not present
+      when: not kubectl_stat.stat.exists
+      block:
+        - name: Get the latest stable kubectl version string
+          ansible.builtin.uri:
+            url: "https://dl.k8s.io/release/stable.txt"
+            return_content: yes
+          register: kubectl_stable_version
+
+        - name: Download the latest stable kubectl binary
+          ansible.builtin.get_url:
+            url: "https://dl.k8s.io/release/{{ kubectl_stable_version.content }}/bin/linux/amd64/kubectl"
+            dest: "/tmp/kubectl"
+            mode: '0755'
+
+        - name: Move kubectl to a directory in the system's PATH
+          ansible.builtin.copy:
+            src: "/tmp/kubectl"
+            dest: "{{ kubectl_binary_path }}"
+            remote_src: yes
+            mode: '0755'
+            owner: root
+            group: root
+
+    - name: Check if KinD is already installed
+      ansible.builtin.stat:
+        path: "{{ kind_binary_path }}"
+      register: kind_stat
+
+    - name: Install latest KinD if not present
+      when: not kind_stat.stat.exists
+      block:
+        - name: Get the latest KinD release version from GitHub API
+          ansible.builtin.uri:
+            url: "https://api.github.com/repos/kubernetes-sigs/kind/releases/latest"
+            body_format: json
+          register: kind_latest_release
+
+        - name: Set KinD version fact
+          ansible.builtin.set_fact:
+            kind_version: "{{ kind_latest_release.json.tag_name }}"
+
+        - name: Download latest KinD binary ({{ kind_version }})
+          ansible.builtin.get_url:
+            url: "https://kind.sigs.k8s.io/dl/{{ kind_version }}/kind-linux-amd64"
+            dest: "/tmp/kind"
+            mode: '0755'
+
+        - name: Move KinD to a directory in the system's PATH
+          ansible.builtin.copy:
+            src: "/tmp/kind"
+            dest: "{{ kind_binary_path }}"
+            remote_src: yes
+            mode: '0755'
+            owner: root
+            group: root
+# ===================================================================
+# Play 2: Create and Configure the KinD Cluster (No Changes)
+# ===================================================================
+- name: Play 2 - Create KinD Cluster
+  hosts: hosts-03
+  vars:
+    cluster_name: "awx-cluster"
+    config_dir: "/tmp/kind_config"
+    awx_operator: "/tmp/awx_operator"
+  tasks:
+    - name: Get a list of all existing KinD clusters
+      # We run 'kind get clusters' and register its output.
+      ansible.builtin.command: "kind get clusters"
+      register: kind_clusters
+      changed_when: false # This is a read-only command, so it never changes anything
+      failed_when: false  # Don't fail even if the command returns an error (e.g., Docker not running)
+
+    - name: Set a fact based on whether the cluster exists
+      # This is the core logic. It creates a boolean variable `kind_cluster_exists`.
+      ansible.builtin.set_fact:
+        # The expression checks if the 'cluster_name_to_check' is in the list of lines
+        # returned by the previous command.
+        # We use `| default([])` as a safety net in case the command fails and `stdout_lines` is not defined.
+        kind_cluster_exists: "'{{ cluster_name }}' in (kind_clusters.stdout_lines | default([]))"
+
+
+    - name: Create KinD cluster if it does not exist
+      #when: cluster_name not in kind_clusters.stdout
+      block:
+        - name: Create temporary directory for config
+          ansible.builtin.file:
+            path: "{{ config_dir }}"
+            state: directory
+            mode: '0755'
+        - name: Create KinD configuration
+          ansible.builtin.copy:
+            dest: "{{ config_dir }}/kind-config.yaml"
+            content: |
+              kind: Cluster
+              apiVersion: kind.x-k8s.io/v1alpha4
+              networking:
+                disableDefaultCNI: false
+                # Custom network settings
+                # Kind will automatically assign unique ports for each cluster
+              kubeadmConfigPatches:
+                - |
+                  kind: ClusterConfiguration
+                  apiVersion: kubeadm.k8s.io/v1beta2
+                  networking:
+                    podSubnet: "192.168.0.0/16" # Custom pod subnet for cluster 1
+                    serviceSubnet: "10.96.0.0/12" # Custom service subnet for cluster 1
+              nodes:
+                - role: control-plane
+                - role: worker
+                - role: worker
+                - role: worker
+
+        - name: Create KinD cluster using the configuration
+          ansible.builtin.command:
+            cmd: "kind create cluster --name {{ cluster_name }} --config {{ config_dir }}/kind-config.yaml"
+          when: cluster_name not in kind_clusters.stdout
+
+        - name: Clone the awx operator from GitHub
+          become: false
+          become_user: "{{ ansible_user }}"
+          ansible.builtin.git:
+            repo: 'https://github.com/ansible/awx-operator.git'
+            dest: "{{ awx_operator }}"
+            version: 2.19.1  # Clones the main development branch
+            force: yes
+
+        - name: Create kustomise awx operator
+          ansible.builtin.copy:
+            dest: "{{ awx_operator }}/kustomization.yml"
+            content: |
+              apiVersion: kustomize.config.k8s.io/v1beta1
+              kind: Kustomization
+              resources:
+                - github.com/ansible/awx-operator/config/default?ref=2.19.1
+                - awx-demo.yml
+              images:
+                - name: quay.io/ansible/awx-operator
+                  newTag: 2.19.1
+              namespace: awx
+
+        - name: Install awx
+          ansible.builtin.command: "{{ item }}"
+          changed_when: false
+          loop:
+            - "kubectl create namespace awx"
+            - "kubectl apply -k {{ awx_operator }}"
+            - "kubectl apply -k {{ awx_operator }}"
