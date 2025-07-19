@@ -1,0 +1,23 @@
+---
+# roles/ntp/tasks/main.yml
+
+- name: Set OS-specific NTP variables
+  ansible.builtin.set_fact:
+    ntp_package: "{{ ntp_config_by_os[ansible_os_family].package }}"
+    ntp_service: "{{ ntp_config_by_os[ansible_os_family].service }}"
+    ntp_config_file: "{{ ntp_config_by_os[ansible_os_family].config_path }}"
+  when: ansible_os_family in ntp_config_by_os
+
+- name: Fail if the OS family is not supported
+  ansible.builtin.fail:
+    msg: "This role does not support the OS family '{{ ansible_os_family }}'."
+  when: ansible_os_family not in ntp_config_by_os
+
+- name: Include installation tasks
+  include_tasks: install.yml
+
+- name: Include configuration tasks
+  include_tasks: configure.yml
+
+- name: Include service management tasks
+  include_tasks: service.yml

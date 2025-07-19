@@ -1,0 +1,10 @@
+---
+# roles/ntp/defaults/main.yml
+
+# Default NTP servers from the pool.ntp.org project.
+# Users can override this list in their playbook to use internal or regional NTP servers.
+ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"
+  - "2.pool.ntp.org"
+  - "3.pool.ntp.org"

@@ -1,0 +1,7 @@
+---
+# roles/ntp/tasks/install.yml
+
+- name: "Install NTP package ({{ ntp_package }})"
+  ansible.builtin.package:
+    name: "{{ ntp_package }}"
+    state: present

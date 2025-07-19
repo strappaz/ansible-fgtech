@@ -2,7 +2,7 @@
 
 VM GCP 4 cores 12 GB ram, 50 GB disk
 
-# Preresquiste 
+# Pre-requiste 
 ```shell
 sudo dnf update -y
 sudo dnf install git wget -y
@@ -21,3 +21,12 @@ sudo make install
 
 
 kubectl port-forward -n awx service/awx-demo-service 30004:80 --address='0.0.0.0'
+
+
+## Troubleshooting
+```shell
+echo fs.inotify.max_user_watches=655360 | sudo tee -a /etc/sysctl.conf
+echo fs.inotify.max_user_instances=1280 | sudo tee -a /etc/sysctl.conf
+echo fs.file-max = 2097152 | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```

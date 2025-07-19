@@ -1,0 +1,8 @@
+---
+# roles/ntp/tasks/service.yml
+
+- name: "Ensure chrony service is enabled and running ({{ ntp_service }})"
+  ansible.builtin.service:
+    name: "{{ ntp_service }}"
+    state: started
+    enabled: yes

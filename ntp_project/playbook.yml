@@ -1,0 +1,6 @@
+---
+- name: Deploy and Configure NTP on all servers
+  hosts: all_servers
+  become: true # Required for installation and configuration
+  roles:
+    - role: ntp # This is the name of our role directory

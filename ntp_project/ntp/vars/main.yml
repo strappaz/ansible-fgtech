@@ -1,0 +1,15 @@
+---
+# roles/ntp/vars/main.yml
+
+# Defines package, service, and config file path for different OS families.
+# This allows the role to work on both RedHat and Debian-based systems.
+ntp_config_by_os:
+  RedHat:
+    package: chrony
+    service: chronyd
+    config_path: /etc/chrony.conf
+  Debian:
+    package: chrony
+    service: chrony
+    config_path: /etc/chrony/chrony.conf
+

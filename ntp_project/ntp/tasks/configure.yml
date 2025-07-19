@@ -1,0 +1,11 @@
+---
+# roles/ntp/tasks/configure.yml
+
+- name: "Configure chrony ({{ ntp_config_file }})"
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "{{ ntp_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart chrony service

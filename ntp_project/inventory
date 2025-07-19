@@ -1,0 +1,33 @@
+# Ansible Inventory: inventory.ini
+
+# =============================================
+# DEVELOPMENT ENVIRONMENT
+# =============================================
+[leader]
+7.home
+
+[slaves]
+8.home
+9.home
+10.home
+
+# Variables specific to the dev environment
+[leader:vars]
+environment_name=leader
+ansible_user=root
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key=/home/docke/.ssh/id_rsa
+
+
+# Variables specific to the dev environment
+[slaves:vars]
+environment_name=slaves
+ansible_user=root
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key=/home/docke/.ssh/id_rsa
+
+[all_servers:children]
+leader
+slaves
+
+
