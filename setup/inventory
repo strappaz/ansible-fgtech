@@ -31,10 +31,10 @@ ansible_ssh_private_key=/home/docke/.ssh/id_rsa
 # PRODUCTION ENVIRONMENT
 # =============================================
 [prod]
-30.home
-31.home
-32.home
-33.home
+20.home
+21.home
+22.home
+23.home
 
 # Variables specific to the prod environment
 [prod:vars]

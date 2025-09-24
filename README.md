@@ -7,9 +7,29 @@ This guide provides instructions on how to create and work with Ansible playbook
 - Python 3.8 or higher
 - pip (Python package manager)
 
+## install docker
+```shell
+sudo dnf --refresh update
+sudo dnf upgrade
+sudo reboot
+sudo dnf -y install yum-utils
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo systemctl start docker 
+sudo systemctl enable  docker 
+sudo systemctl status  docker 
+sudo docker version
+sudo usermod -aG docker $USER
+# close pycharm 
+docker ps
+```
 
 ## Build and Run
 Docker containers that uses for Ansible role and playbook testing.
+```shell
+git clone  https://github.com/crunchy-devops/ansible-fgtech.gi
+cd ansible-fgtech
+```
 
 ### Supported tags and platforms
 
@@ -221,6 +241,21 @@ ansible-playbook -i inventory/hosts.ini --check playbook.yml
 - [Ansible Galaxy](https://galaxy.ansible.com/)
 - [Ansible Best Practices](https://docs.ansible.com/ansible/latest/user_guide/playbooks_best_practices.html)
 
+
+## Install python virutal env on almalinux
+```aiexclude
+sudo dnf update -y 
+sudo dnf install -y python3.13
+sudo dnf install -y python3.13-pip 
+python3 --version
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1
+sudo alternatives --config python3
+python3 --version
+python3 -m venv venv
+source venv/bin/activate
+pip3 install docker
+pip3 install --upgrade pip
+```
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
