@@ -1,5 +1,9 @@
 # use case 3
 
+Target version of centos is 2009   (/09/2020) 
+ansible version is v2.9.13 (1/09/2020)
+python3  is 3.5.10 (05/09/2020)
+python  is 2.7.5
 
 ## install ansible
 ```shell
