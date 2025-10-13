@@ -1,6 +1,7 @@
 ---
 - name: Vérification de l'environnement d'exécution AWX (CentOS 7 / Python 2.7.5 / Ansible 2.9.13)
-  hosts: all
+  hosts: localhost
+  connection: local
   gather_facts: false
 
   tasks:
