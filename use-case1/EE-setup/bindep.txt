@@ -1,2 +1,0 @@
-libssl-dev [platform:dpkg]
-openssl [platform:rpm]

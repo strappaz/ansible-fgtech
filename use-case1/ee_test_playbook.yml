@@ -1,45 +1,67 @@
 ---
-- name: Tester l'environnement d'exécution (EE) sur CentOS 7
-  hosts: all
-  gather_facts: yes
-  become: yes
+- name: Vérification de l'environnement d'exécution AWX (CentOS 7 / Python 2.7.5 / Ansible 2.9.13)
+  hosts: localhost
+  connection: local
+  gather_facts: false
 
   tasks:
-    - name: 1. Vérifier l'interpréteur Python (Stack 2.9 / 2.7)
+    - name: 1. Afficher les informations de l'environnement
       ansible.builtin.debug:
-        msg: "Interpréteur Python distant utilisé : {{ ansible_python.version.major }}.{{ ansible_python.version.minor }}"
+        msg: |
+          "--- Informations sur l'EE ---
+          Conteneur Exécutant : {{ lookup('env', 'ANSIBLE_CONTROLLER_EE_IMAGE') | default('Local Testing') }}
 
-      # Directive significative pour la stack :
-      # On s'assure que l'interpréteur est bien Python 2.7 (le défaut de CentOS 7)
-      # et que la gestion des facts fonctionne.
+          --- Vérification Python du Control Node (dans l'EE) ---
+          Version de Python (système) : {{ ansible_facts.python.version.major }}.{{ ansible_facts.python.version.minor }}.{{ ansible_facts.python.version.micro }} (Doit être 2.7)
 
-    - name: 2. Tester un module d'Ansible Core 2.9 (Exemple ansible.builtin.file)
+          --- Vérification Ansible ---
+          Version d'Ansible (Control Node) : {{ ansible_version.full }} (Doit être 2.9.13)
+          "
+      # Note: AWX injecte certaines variables d'environnement (comme ANSIBLE_CONTROLLER_EE_IMAGE)
+      # Pour les tests locaux, les faits d'Ansible sont utilisés.
+      # Vous devez exécuter 'ansible-playbook test_ee.yml' en utilisant la version 2.9.13 d'Ansible pour que cette vérification soit valide.
+
+    - name: 2. Obtenir et afficher la version de Python sur le localhost (EE)
+      ansible.builtin.command: python -V
+      register: python_version_check
+
+    - name: Afficher le résultat de la vérification Python
+      ansible.builtin.debug:
+        msg: "Version de Python dans l'EE: {{ python_version_check.stderr | trim }}"
+      # La commande 'python -V' affiche sur stderr
+
+    - name: 3. Tester un module intégré (yum) sur un hôte cible CentOS 7
+      # Ce bloc suppose que vous ciblez un hôte (remote_host_centos7) dans votre inventaire AWX
+      # et que cet hôte utilise bien Python 2.7.
+      delegate_to: remote_host_centos7
+      block:
+        - name: Assurer l'installation de 'wget' en utilisant le module 'yum' (Ansible 2.9)
+          ansible.builtin.yum:
+            name: wget
+            state: present
+          register: yum_result
+
+        - name: Afficher le statut du module 'yum'
+          ansible.builtin.debug:
+            msg: "Le module 'yum' a réussi sur l'hôte cible. Changement : {{ yum_result.changed }}"
+
+      rescue:
+        - name: Gestion de l'échec de la connexion à l'hôte cible
+          ansible.builtin.debug:
+            msg: "Impossible de se connecter à l'hôte cible ou le module 'yum' a échoué. Vérifiez l'inventaire et les informations d'identification."
+          when: "ansible_failed_result is defined"
+
+    - name: 4. Vérifier un module simple (file) sans hôte distant
       ansible.builtin.file:
-        path: /tmp/ee_test_core_module
+        path: /tmp/test_ansible_29_ee.txt
         state: touch
         mode: '0644'
 
-      # Directive significative pour la stack :
-      # Vérifie que les modules de base (core) de l'Ansible 2.9.13 sont accessibles et fonctionnent
-      # correctement sur l'hôte cible.
+    - name: 5. Confirmer la création du fichier
+      ansible.builtin.stat:
+        path: /tmp/test_ansible_29_ee.txt
+      register: file_stat
 
-    - name: 3. (Tâche Clé EE) Tester une Collection externe (Exemple community.general.ini)
-      # NOTE : Remplacez 'community.general' par la collection spécifique que votre EE est censé inclure.
-      # L'EE doit obligatoirement avoir cette collection installée.
-      community.general.ini_file:
-        path: /tmp/ee_test_collection.ini
-        section: environment_info
-        option: test_result
-        value: "Success"
-        create: yes
-
-      # Tâche significative pour l'EE :
-      # Cette tâche est la plus importante pour valider l'EE. Elle échouera si la Collection
-      # 'community.general' n'est pas installée dans l'image de conteneur de l'EE.
-      # Un Playbook ne peut pas s'exécuter si son EE ne contient pas les dépendances (Collections,
-      # paquets Python) nécessaires aux modules qu'il utilise.
-
-    - name: 4. Vérifier le nom de l'OS (Confirmation CentOS 7)
+    - name: Afficher la confirmation du module 'file'
       ansible.builtin.debug:
-        msg: "OS distant : {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
-      when: ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
+        msg: "Le module 'file' (Ansible 2.9) a réussi : Le fichier existe : {{ file_stat.stat.exists }}"

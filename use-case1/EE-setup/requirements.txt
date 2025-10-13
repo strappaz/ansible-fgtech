@@ -1,1 +1,3 @@
+# Fichier requirements.txt
+# Nous installons la version exacte d'Ansible requise
 ansible==2.9.13

@@ -1,7 +1,0 @@
-version: 3
-images:
-  base_image:
-    name:  ghcr.io/ansible-community/community-ee-minimal:2.16.0-1 # Base image AWX
-dependencies:
-  system: bindep.txt
-  python: requirements.txt
