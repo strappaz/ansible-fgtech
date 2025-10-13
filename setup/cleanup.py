@@ -7,7 +7,7 @@ import shutil
 
 # --- Configuration ---
 # These should match the values in your creation script.
-NUM_CONTAINERS = 25
+NUM_CONTAINERS = 6
 BASE_NAME_TEMPLATE = "systemd-{}"
 HOSTNAME_TEMPLATE = "{}.home"
 HOSTS_FILE = "/etc/hosts"

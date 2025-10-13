@@ -1,0 +1,2 @@
+[test]
+ee_test ansible_host=172.17.0.7 ansible_ssh_user=ansible ansible_ssh_private_key=/home/alma/.ssh/id_rsa

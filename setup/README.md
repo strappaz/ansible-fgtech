@@ -2,7 +2,7 @@
 
 ## Configuration de sysctl
 ```shell
-  cd /home/docke/ansible-fgtech
+  cd /home/alma/ansible-fgtech
   echo  vm.max_map_count=262144 | sudo tee -a /etc/sysctl.conf
   echo fs.inotify.max_user_watches=655360 | sudo tee -a /etc/sysctl.conf
   echo fs.inotify.max_user_instances=1280 | sudo tee -a /etc/sysctl.conf
@@ -19,5 +19,5 @@ ANSIBLE_PYTHON_INTERPRETER=auto_silent ansible all  -m ping -i inventory
 ```shell
 ansible-config list  # list all configurations
 ansible-config view  # Shows the current config file
-ansible-config dump  # Shos the current settings
+ansible-config dump  # Shows the current settings
 ```

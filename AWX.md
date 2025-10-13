@@ -67,6 +67,7 @@ Password uses the command below
 ```shell
 kubectl get secret -n awx  awx-demo-admin-password -o jsonpath="{.data.password}" | base64 --decode ; echo
 ```
+Change your password to a simple one
 ## Web access
 ```
 kubectl port-forward -n awx service/awx-demo-service 30540:80 --address='0.0.0.0' &

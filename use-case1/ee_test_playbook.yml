@@ -1,0 +1,45 @@
+---
+- name: Tester l'environnement d'exécution (EE) sur CentOS 7
+  hosts: all
+  gather_facts: yes
+  become: yes
+
+  tasks:
+    - name: 1. Vérifier l'interpréteur Python (Stack 2.9 / 2.7)
+      ansible.builtin.debug:
+        msg: "Interpréteur Python distant utilisé : {{ ansible_python.version.major }}.{{ ansible_python.version.minor }}"
+
+      # Directive significative pour la stack :
+      # On s'assure que l'interpréteur est bien Python 2.7 (le défaut de CentOS 7)
+      # et que la gestion des facts fonctionne.
+
+    - name: 2. Tester un module d'Ansible Core 2.9 (Exemple : ansible.builtin.file)
+      ansible.builtin.file:
+        path: /tmp/ee_test_core_module
+        state: touch
+        mode: '0644'
+
+      # Directive significative pour la stack :
+      # Vérifie que les modules de base (core) de l'Ansible 2.9.13 sont accessibles et fonctionnent
+      # correctement sur l'hôte cible.
+
+    - name: 3. (Tâche Clé EE) : Tester une Collection externe (Exemple : community.general.ini)
+      # NOTE : Remplacez 'community.general' par la collection spécifique que votre EE est censé inclure.
+      # L'EE doit obligatoirement avoir cette collection installée.
+      community.general.ini_file:
+        path: /tmp/ee_test_collection.ini
+        section: environment_info
+        option: test_result
+        value: "Success"
+        create: yes
+
+      # Tâche significative pour l'EE :
+      # Cette tâche est la plus importante pour valider l'EE. Elle échouera si la Collection
+      # 'community.general' n'est pas installée dans l'image de conteneur de l'EE.
+      # Un Playbook ne peut pas s'exécuter si son EE ne contient pas les dépendances (Collections,
+      # paquets Python) nécessaires aux modules qu'il utilise.
+
+    - name: 4. Vérifier le nom de l'OS (Confirmation CentOS 7)
+      ansible.builtin.debug:
+        msg: "OS distant : {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      when: ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
