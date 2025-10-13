@@ -1,0 +1,31 @@
+---
+## 🚀 TEST DE CONNEXION ET DE DÉPLOIEMENT SUR LA CIBLE CENTOS 7
+
+- name: Exécuter des tâches sur les hôtes cibles distants
+  hosts: ee_test # Remplacer par le groupe/hôte cible
+  gather_facts: false # Collecte des faits désactivée pour plus de rapidité
+
+  tasks:
+    - name: 5. Assurer l'utilisation de Python 2.7 sur l'hôte cible
+      # Configure l'interpréteur pour le serveur CentOS 7 distant
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: /usr/bin/python
+
+    - name: 6. TEST CRITIQUE  Utiliser 'ping' pour vérifier la connexion SSH/Python
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Afficher le résultat du ping
+      ansible.builtin.debug:
+        msg: "✅ Connexion à l'hôte cible réussie (Ping: {{ ping_result.ping }})"
+
+    - name: 7. Tester un module spécifique à CentOS 7 (yum)
+      # L'absence de delegate_to garantit que cette tâche s'exécute sur l'hôte ciblé.
+      ansible.builtin.yum:
+        name: wget
+        state: present
+      register: yum_result
+
+    - name: Confirmer le succès du module 'yum'
+      ansible.builtin.debug:
+        msg: "✅ Module 'yum' (Ansible 2.9) testé sur l'hôte distant. Changement: {{ yum_result.changed }}"
