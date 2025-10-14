@@ -1,0 +1,36 @@
+---
+- name: 🧪 VÉRIFICATION DE L'EE ANSIBLE 2.9.13 / PYTHON 2.7.5 (VENV)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: 1. Vérifier le chemin d'exécution de Python (doit être dans le VENV)
+      # Utiliser la variable d'environnement pour vérifier le chemin configuré
+      ansible.builtin.debug:
+        msg: "✅ Interpréteur Python attendu: {{ lookup('env', 'ANSIBLE_PYTHON_INTERPRETER') }}"
+
+    - name: 2. Vérifier la version de Python (doit être 2.7.5)
+      # Exécuter directement le binaire Python du venv
+      ansible.builtin.command: /opt/ansible_ee_venv/bin/python -V
+      register: python_version_check
+      changed_when: false
+
+    - name: Afficher la version de Python
+      ansible.builtin.debug:
+        msg: "✅ Version de Python de l'EE: {{ python_version_check.stderr | trim }}"
+      # Vérification pour s'assurer que l'interpréteur a trouvé la bonne version
+      failed_when: "'Python 2.7' not in python_version_check.stderr"
+
+    - name: 3. Vérifier la version d'Ansible (doit être 2.9.13)
+      # La commande 'ansible-playbook' utilise le PATH du VENV
+      ansible.builtin.command: ansible-playbook --version
+      register: ansible_version_check
+      changed_when: false
+
+    - name: Afficher la version d'Ansible
+      ansible.builtin.debug:
+        msg: "✅ Version d'Ansible: {{ ansible_version_check.stdout_lines[0] | regex_replace('.*([0-9]+\\.[0-9]+\\.[0-9]+).*', '\\1') }}"
+
+    # Reste du Playbook (Connexion aux hôtes distants)
+# ... (Les étapes de 4 à 7 du Playbook précédent, sans delegate_to: localhost)

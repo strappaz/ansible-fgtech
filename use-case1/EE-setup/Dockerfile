@@ -22,6 +22,11 @@ RUN yum install -y \
 
 RUN yum groupinstall -y "Development tools"
 
+RUN /usr/bin/python -m pip install --upgrade \
+    pip==20.3.4 \
+    setuptools==44.1.1
+
+
 # S'assurer que 'pip' utilise la bonne version de Python (Python 2.7.5 est le Python par défaut sur CentOS 7)
 RUN pip install --upgrade pip
 

@@ -9,3 +9,5 @@ jinja2==2.11.3
 markupsafe==1.1.1
 # setuptools (nécessaire pour la construction de paquets)
 setuptools==44.1.1
+# Pip doit également être limité pour éviter les conflits
+pip==20.3.4
