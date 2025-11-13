@@ -1,0 +1,34 @@
+---
+- name: Gérer le fichier de configuration avec sauvegarde horodatée
+  hosts: alma10
+  become: yes
+  vars:
+    config_file: /etc/myapp/config.conf
+    # Crée un nom de fichier de backup unique (ex: config.conf.2025-11-12_11-31-07.bak)
+    backup_file: "{{ config_file }}.{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}-{{ ansible_date_time.second }}.bak"
+
+  tasks:
+    - name: 1. Créer une sauvegarde horodatée du fichier existant
+      ansible.builtin.copy:
+        src: "{{ config_file }}"
+        dest: "{{ backup_file }}"
+        remote_src: yes # Indique que le fichier source est sur la machine distante
+        force: no       # N'écrase pas le backup si un fichier du même nom existait déjà
+      register: backup_result
+      # Ignore l'erreur si le fichier source n'existe pas encore (lineinfile le créera)
+      ignore_errors: yes
+
+    - name: Afficher le résultat de la sauvegarde (facultatif)
+      ansible.builtin.debug:
+        msg: "Sauvegarde créée: {{ backup_file }}"
+      when: backup_result.changed is defined and backup_result.changed
+
+    - name: 2. Vérifier et insérer la ligne Hostname
+      ansible.builtin.lineinfile:
+        path: "{{ config_file }}"
+        create: yes  # Crée le fichier si nécessaire
+        state: present
+        regexp: '^Hostname=.*'
+        insertafter: '^# Hostname='
+        line: 'Hostname={{ ansible_hostname }}'
+        mode: '0644' # Définit les permissions du fichier lors de la création

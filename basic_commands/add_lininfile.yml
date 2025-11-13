@@ -1,0 +1,21 @@
+---
+- name: Gérer le fichier de configuration Hostname
+  hosts: alma10
+  become: yes
+  vars:
+    config_file: /etc/myapp/config.conf  # Changez ceci vers le chemin de votre fichier
+
+  tasks:
+    - name: Vérifier et insérer la ligne Hostname
+      ansible.builtin.lineinfile:
+        path: "{{ config_file }}"
+        create: yes  # Crée le fichier si il n'existe pas
+        state: present
+        regexp: '^Hostname=.*'
+        insertafter: '^# Hostname='
+        line: 'Hostname={{ ansible_hostname }}'
+        mode: '0644' # Définit les permissions du fichier lors de la création
+
+      # NOTE: Si la ligne ^# Hostname= n'existe pas, 'insertafter' sera ignoré
+      # et la ligne sera ajoutée à la fin du fichier.
+

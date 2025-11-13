@@ -1,0 +1,14 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  vars:
+    password: '12345678'
+  tasks:
+    - name: Creating user titi with admin access
+      user:
+        name: essai
+        password: "{{ password | password_hash('sha512') }}"
+        groups: wheel
+        state: present
+

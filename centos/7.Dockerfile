@@ -8,7 +8,7 @@ ARG SSH_PUBLIC_KEY
 COPY centos/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN INSTALL_PKGS='findutils initscripts iproute  openssh-client epel-release vim sudo openssh-server ' \
+RUN INSTALL_PKGS='findutils initscripts iproute git openssh-client epel-release vim sudo openssh-server ' \
     && sed -i 's/mirror.centos.org/vault.centos.org/g' /etc/yum.repos.d/*.repo \
     && sed -i 's/^#.*baseurl=http/baseurl=http/g' /etc/yum.repos.d/*.repo \
     && sed -i 's/^mirrorlist=http/#mirrorlist=http/g' /etc/yum.repos.d/*.repo \
@@ -18,6 +18,7 @@ RUN INSTALL_PKGS='findutils initscripts iproute  openssh-client epel-release vim
     && yum makecache fast && yum update -y \
     && yum clean all
 
+RUN yum install -y ansible
 
 RUN useradd -m ansible && echo "ansible:12345678" | chpasswd && \
     echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \

@@ -1,0 +1,6 @@
+- name: Déclencher l'exécution du playbook via Ansible-Pull (RAW)
+  hosts: centos7
+  gather_facts: no
+  become: yes
+  roles:
+    - centos7

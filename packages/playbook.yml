@@ -1,0 +1,11 @@
+# playbook.yml
+---
+- name: Mise à jour DNF sur cibles AlmaLinux (Référence)
+  hosts: alma10_servers
+  become: yes
+  tasks:
+    - name: Lancer DNF update
+      ansible.builtin.dnf:
+        name: '*'
+        state: latest
+        update_cache: yes
