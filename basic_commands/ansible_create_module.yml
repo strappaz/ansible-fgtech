@@ -1,7 +1,8 @@
 ---
-- hosts: localhost
+- hosts: localhost:
   tasks:
-     - name: get git_key
+     - name: get gi:q:q
+    WWt_key
        command: cat ../token
        register: git_key
      - name: Create a github Repository
