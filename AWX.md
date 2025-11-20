@@ -1,3 +1,4 @@
+:q:q
 # Differents set up of AWX
 
 ## install on kubernetes kind

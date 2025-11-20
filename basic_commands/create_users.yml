@@ -12,3 +12,7 @@
         groups: wheel
         state: present
         update_password: on_create
+<<<<<<< HEAD
+=======
+
+>>>>>>> d9a11543e37ced80f1dd26bb909d46b5fee7a70f

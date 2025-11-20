@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ---
+=======
+----
+>>>>>>> d9a11543e37ced80f1dd26bb909d46b5fee7a70f
 - name: TP Gestion Avancee des Erreurs
   hosts: all
   gather_facts: yes
