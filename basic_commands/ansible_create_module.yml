@@ -5,7 +5,7 @@
     WWt_key
        command: cat ../token
        register: git_key
-     - name: Create a github Repository
+     - n:qame: Create a github Repository
        github_repo:
         github_auth_key: "{{ git_key.stdout }}"
         name: "fgtech-essai"
