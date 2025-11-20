@@ -1,0 +1,18 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for postgresql.role
+#
+- include_tasks: variables.yml
+
+# setup / install task
+- include_tasks: setup-package.yml
+
+- include_tasks: initialize.yml
+
+- name: Ensure Postqresql is started and enabel on boot
+  service: 
+    name: "{{ postgresql_daemon }}"
+    state: "{{ postgresql_service_state }}"
+    enabled: "{{ postgresql_service_enabled }}"
+
+- import_tasks: users.yml

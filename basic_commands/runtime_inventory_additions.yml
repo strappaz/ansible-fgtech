@@ -16,7 +16,7 @@
        hash:  "{{ my_hash.stdout }}"
        ip_address: "192.168.1.106"
 
-- hosts: 4.home
+- hosts: 1.home
   tasks:
     - name: if exist delete file
       ansible.builtin.file: path=/tmp/values state=absent

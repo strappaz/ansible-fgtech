@@ -1,5 +1,5 @@
 ---
-- hosts: centos_remote_a
+- hosts: alma10
   become: true
   tasks:
     - name:  install apache

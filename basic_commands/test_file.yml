@@ -1,0 +1,11 @@
+---
+- hosts: alma10
+  become: true
+  gather_facts: no
+  tasks:
+    - name: test fichier
+      ansible.builtin.file:
+        path: /home/ansible/test
+        state: present
+
+
