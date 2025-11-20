@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 DOCUMENTATION = '''
 ---
@@ -104,4 +104,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

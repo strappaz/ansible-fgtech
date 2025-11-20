@@ -1,5 +1,5 @@
 ---
 - name: use a dedicated ansible module
-  hosts: localhost
-  roles: 
+  hosts: [localhost]
+  roles:
     - { role: github.role }
